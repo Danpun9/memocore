@@ -240,9 +240,9 @@ class ChatViewModel(
                     _chatScreenUIState.value = _chatScreenUIState.value.copy(messages = currentMessages)
 
                     val history = currentMessages.dropLast(2)
-                    val continueQuery = "(System: Action executed successfully. Please provide the Final Answer.)"
+                    val continueQuery = "Action executed successfully. The file has been updated. Do not verify. Do not use tools. Provide the Final Answer now."
                      
-                     chatAgent.generateResponse(currentMessages.dropLast(1), continueQuery).collect { response ->
+                     chatAgent.generateResponse(currentMessages.dropLast(1), continueQuery, isSystemQuery = true).collect { response ->
                         // Handle response same as above
                          when (response) {
                             is AgentResponse.Streaming -> {
@@ -286,9 +286,9 @@ class ChatViewModel(
                     
                     _chatScreenUIState.value = _chatScreenUIState.value.copy(messages = currentMessages)
 
-                    val continueQuery = "(System: User rejected the action. Stop and ask for new instructions.)"
+                    val continueQuery = "User rejected the action. Do not attempt to edit again. Do not use tools. Ask for new instructions."
                     
-                    chatAgent.generateResponse(currentMessages.dropLast(1), continueQuery).collect { response ->
+                    chatAgent.generateResponse(currentMessages.dropLast(1), continueQuery, isSystemQuery = true).collect { response ->
                          when (response) {
                             is AgentResponse.Streaming -> {
                                 updateLastMessageContent(response.content, isThinking = false)

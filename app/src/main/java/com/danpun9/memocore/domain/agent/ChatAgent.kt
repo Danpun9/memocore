@@ -27,7 +27,8 @@ sealed interface AgentResponse {
 data class ToolAction(
     val type: ToolType,
     val title: String,
-    val content: String = ""
+    val content: String = "",
+    val originalContent: String? = null
 )
 
 enum class ToolType {
@@ -76,7 +77,7 @@ class ChatAgent(
 
     enum class ChatRole { USER, MODEL, SYSTEM }
 
-    fun generateResponse(history: List<ChatMessage>, currentQuery: String): Flow<AgentResponse> = flow {
+    fun generateResponse(history: List<ChatMessage>, currentQuery: String, isSystemQuery: Boolean = false): Flow<AgentResponse> = flow {
         try {
             val modelType = userPreferences.getModelType()
             val llm: LLMInferenceAPI = if (modelType == ModelType.LOCAL) {
@@ -110,12 +111,16 @@ class ChatAgent(
                             }
                         }
                         ChatRole.SYSTEM -> {
-                            historyPrompt.append("System: ${message.content}\n")
+                            historyPrompt.append("[System Notification]: ${message.content}\n")
                         }
                     }
                 }
             }
-            historyPrompt.append("User Query: $currentQuery")
+            if (isSystemQuery) {
+                historyPrompt.append("[System Notification]: $currentQuery")
+            } else {
+                historyPrompt.append("User Query: $currentQuery")
+            }
 
             var currentPrompt = historyPrompt.toString()
 
@@ -147,6 +152,8 @@ class ChatAgent(
                         } else {
                             emit(AgentResponse.Status("Thinking..."))
                         }
+                    } else if (currentTurnResponse.contains("<read_doc>")) {
+                         emit(AgentResponse.Status("Reading document..."))
                     } else if (currentTurnResponse.contains("<create_doc>")) {
                          emit(AgentResponse.Status("Creating document..."))
                     } else if (currentTurnResponse.contains("<edit_doc>")) {
@@ -164,8 +171,50 @@ class ChatAgent(
                 val searchEndTag = "</search>"
                 val startIndex = currentTurnResponse.indexOf(searchTag)
                 val endIndex = currentTurnResponse.indexOf(searchEndTag)
+                
+                 if (currentTurnResponse.contains("<create_doc>")) {
+                    val start = currentTurnResponse.indexOf("<create_doc>")
+                    val end = currentTurnResponse.indexOf("</create_doc>")
+                    if (start != -1 && end != -1) {
+                        val toolContent = currentTurnResponse.substring(start + "<create_doc>".length, end)
+                        val title = toolContent.substringAfter("<title>").substringBefore("</title>").trim()
+                        val content = toolContent.substringAfter("<content>").substringBefore("</content>").trim()
+                        
+                        emit(AgentResponse.UserConfirmationRequired(ToolAction(ToolType.CREATE_DOC, title, content)))
+                        return@flow
+                    } else {
+                         turn++ 
+                    }
+                } else if (currentTurnResponse.contains("<edit_doc>")) {
+                    val start = currentTurnResponse.indexOf("<edit_doc>")
+                    val end = currentTurnResponse.indexOf("</edit_doc>")
+                    if (start != -1 && end != -1) {
+                        val toolContent = currentTurnResponse.substring(start + "<edit_doc>".length, end)
+                        val title = toolContent.substringAfter("<title>").substringBefore("</title>").trim()
+                        val content = toolContent.substringAfter("<content>").substringBefore("</content>").trim()
+                        
+                        // Fetch original content
+                        val fullDocFileName = if (title.endsWith(".md")) title else "$title.md"
+                        val originalContent = documentRepository.readDocument(fullDocFileName)
 
-                if (startIndex != -1 && endIndex != -1) {
+                        emit(AgentResponse.UserConfirmationRequired(ToolAction(ToolType.EDIT_DOC, title, content, originalContent)))
+                        return@flow
+                    } else {
+                        turn++
+                    }
+                } else if (currentTurnResponse.contains("<delete_doc>")) {
+                    val start = currentTurnResponse.indexOf("<delete_doc>")
+                    val end = currentTurnResponse.indexOf("</delete_doc>")
+                    if (start != -1 && end != -1) {
+                        val toolContent = currentTurnResponse.substring(start + "<delete_doc>".length, end)
+                        val title = toolContent.substringAfter("<title>").substringBefore("</title>").trim()
+                        
+                        emit(AgentResponse.UserConfirmationRequired(ToolAction(ToolType.DELETE_DOC, title)))
+                        return@flow
+                    } else {
+                        turn++
+                    }
+                } else if (startIndex != -1 && endIndex != -1) {
                     val searchQuery = currentTurnResponse.substring(startIndex + searchTag.length, endIndex).trim()
 
                     if (previousSearchQueries.contains(searchQuery)) {
@@ -212,7 +261,7 @@ class ChatAgent(
                                 RetrievedContext(
                                     result.second.docFileName,
                                     result.second.chunkData,
-                                ),
+                                )
                             )
                         }
                         observation += "</search_results>"
@@ -221,41 +270,30 @@ class ChatAgent(
                     currentPrompt += "\n$currentTurnResponse\n$observation\nSystem: Search results provided above. Do NOT search again. Answer the user query using the information above."
                     displayedResponse += observation
                     turn++
-                } else if (currentTurnResponse.contains("<create_doc>")) {
-                    val start = currentTurnResponse.indexOf("<create_doc>")
-                    val end = currentTurnResponse.indexOf("</create_doc>")
+                } else if (currentTurnResponse.contains("<read_doc>")) {
+                    val start = currentTurnResponse.indexOf("<read_doc>")
+                    val end = currentTurnResponse.indexOf("</read_doc>")
                     if (start != -1 && end != -1) {
-                        val toolContent = currentTurnResponse.substring(start + "<create_doc>".length, end)
-                        val title = toolContent.substringAfter("<title>").substringBefore("</title>")
-                        val content = toolContent.substringAfter("<content>").substringBefore("</content>")
+                        val toolContent = currentTurnResponse.substring(start + "<read_doc>".length, end)
+                        val title = toolContent.substringAfter("<title>").substringBefore("</title>").trim()
                         
-                        emit(AgentResponse.UserConfirmationRequired(ToolAction(ToolType.CREATE_DOC, title, content)))
-                        return@flow
-                    } else {
-                         turn++ 
-                    }
-                } else if (currentTurnResponse.contains("<edit_doc>")) {
-                    val start = currentTurnResponse.indexOf("<edit_doc>")
-                    val end = currentTurnResponse.indexOf("</edit_doc>")
-                    if (start != -1 && end != -1) {
-                        val toolContent = currentTurnResponse.substring(start + "<edit_doc>".length, end)
-                        val title = toolContent.substringAfter("<title>").substringBefore("</title>")
-                        val content = toolContent.substringAfter("<content>").substringBefore("</content>")
-                        
-                        emit(AgentResponse.UserConfirmationRequired(ToolAction(ToolType.EDIT_DOC, title, content)))
-                        return@flow
-                    } else {
+                        val fullDocFileName = if (title.endsWith(".md")) title else "$title.md"
+                        val content = documentRepository.readDocument(fullDocFileName)
+
+                        val observation = if (content != null) {
+                             val truncatedContent = if (content.length > 20000) {
+                                 content.substring(0, 20000) + "\n...(truncated)"
+                             } else {
+                                 content
+                             }
+                              "\nObservation: Content of '$fullDocFileName':\n$truncatedContent"
+                         } else {
+                              "\nObservation: File '$fullDocFileName' not found."
+                         }
+
+                        currentPrompt += "\n$currentTurnResponse\n$observation"
+                        displayedResponse += observation
                         turn++
-                    }
-                } else if (currentTurnResponse.contains("<delete_doc>")) {
-                    val start = currentTurnResponse.indexOf("<delete_doc>")
-                    val end = currentTurnResponse.indexOf("</delete_doc>")
-                    if (start != -1 && end != -1) {
-                        val toolContent = currentTurnResponse.substring(start + "<delete_doc>".length, end)
-                        val title = toolContent.substringAfter("<title>").substringBefore("</title>")
-                        
-                        emit(AgentResponse.UserConfirmationRequired(ToolAction(ToolType.DELETE_DOC, title)))
-                        return@flow
                     } else {
                         turn++
                     }
@@ -308,9 +346,9 @@ class ChatAgent(
                 ToolType.DELETE_DOC -> documentRepository.deleteMarkdownDocument(action.title)
                 ToolType.LIST_DOCS -> "Observation: Listed documents."
             }
-            "\nObservation: $result"
+            "Observation: $result"
         } catch (e: Exception) {
-            "\nObservation: Error executing action: ${e.message}"
+            "Observation: Error executing action: ${e.message}"
         }
     }
 

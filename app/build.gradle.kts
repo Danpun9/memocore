@@ -87,7 +87,7 @@ dependencies {
     // Sentence Embeddings
     // https://github.com/shubham0204/Sentence-Embeddings-Android
     implementation(files("libs/sentence_embeddings.aar"))
-    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.17.0")
+    implementation(libs.onnxruntime.android)
 
     // iTextPDF - for parsing PDFs
     implementation(libs.itextpdf)
@@ -110,12 +110,12 @@ dependencies {
     ksp(libs.koin.ksp.compiler)
 
     // For secured/encrypted shared preferences
-    implementation("androidx.security:security-crypto:1.1.0")
+    implementation(libs.androidx.security.crypto)
 
-    implementation("com.github.khushpanchal:Ketch:2.0.5")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation(libs.ketch)
+    implementation(libs.okhttp)
 
-    implementation("com.google.mediapipe:tasks-genai:0.10.29")
+    implementation(libs.tasks.genai)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

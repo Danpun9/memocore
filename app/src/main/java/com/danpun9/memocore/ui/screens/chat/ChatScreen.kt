@@ -146,7 +146,26 @@ fun ChatScreen(
                 text = {
                     Column {
                         Text(text)
-                        if (action.content.isNotEmpty()) {
+                        if (action.type == com.danpun9.memocore.domain.agent.ToolType.EDIT_DOC && action.originalContent != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Changes:",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                                    .padding(8.dp)
+                            ) {
+                                com.danpun9.memocore.ui.components.TextDiffViewer(
+                                    oldText = action.originalContent,
+                                    newText = action.content
+                                )
+                            }
+                        } else if (action.content.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = "Preview:",
