@@ -9,6 +9,9 @@
 ![ObjectBox](https://img.shields.io/badge/DB-ObjectBox-FF0099)
 
 
+<img width="512" height="512" alt="Image" src="https://github.com/user-attachments/assets/a3c21dac-4804-4a28-836b-edcc7c0064a2" />
+
+
 **Memocore**는 사용자의 개인 문서(PDF, DOCX, MD)를 기반으로 AI와 채팅할 수 있는 **오프라인 중심의 프라이버시 보호 AI 워크스페이스**입니다. 인터넷 연결 없이도 온디바이스(On-Device) 모델을 활용하여 안전하게 질문하고 답변을 받을 수 있으며, 필요 시 클라우드 모델(Gemini)과도 연동이동 가능한 하이브리드 아키텍처를 갖추고 있습니다.
 
 ## 🚀 프로젝트 핵심 가치
@@ -65,6 +68,37 @@ app/src/main/java/com/danpun9/memocore/
 ### 모델 설정
 *   **Gemini (Cloud):** 앱 실행 후 `Settings` 메뉴에서 API Key를 입력해야 합니다.
 *   **Local Model:** `Settings` > `Manage Local Models`에서 호환되는 `.tflite`모델을 다운로드하거나 로드해야 합니다.
+
+
+## 동작
+
+### 채팅 화면
+<img width="4072" height="2030" alt="Image" src="https://github.com/user-attachments/assets/7f456845-6378-4cb7-b328-a5979557197d" />
+
+*   에이전트에 질문을 하면, 현재 존재하는 문서들을 기반으로 답변을 생성합니다.
+*   ReAct 방식으로 도구 사용 결과에 대해 다시 행동을 하여 답변을 생성합니다.
+
+### 에이전트 도구 사용
+
+<img width="2423" height="2314" alt="Image" src="https://github.com/user-attachments/assets/a64c4758-b0f6-4935-9409-18067947c556" />
+
+*   에이전트는 도구를 사용하여 문서를 검색하고 답변을 생성합니다.
+*   도구 사용 결과에 따라 에이전트가 다시 행동을 하여 답변을 생성합니다.
+
+### 문서 화면
+
+<img width="3663" height="2313" alt="Image" src="https://github.com/user-attachments/assets/63566bb1-246a-4ea5-9284-00b08de4d5c7" />
+*   파일 추가 시 임베딩이 진행되어 벡터DB에 저장되어 검색에 사용됩니다.
+*   파일 삭제 시 벡터db에서 해당 파일의 임베딩이 삭제됩니다.
+*   사용자는 PDF, DOCX 파일을 추가할 수 있으며, 마크다운 파일을 직접 추가 및 편집할 수 있습니다.
+
+### 설정
+
+<img width="3589" height="2057" alt="Image" src="https://github.com/user-attachments/assets/da844b18-01f4-465b-910e-f232c5ef9752" />
+
+*   클라우드 모델과 로컬 모델을 선택할 수 있습니다.
+*   테마를 선택할 수 있습니다.
+
 
 ## ⚠️ 알려진 제한 사항 및 주의사항
 *   **메모리 사용량:** 대용량 PDF(50MB 이상) 로드 시 메모리 부족(OOM) 현상이 발생할 수 있습니다.
